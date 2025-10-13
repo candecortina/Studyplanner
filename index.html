@@ -2,39 +2,88 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#2553D6" />
   <title>Studyplanner</title>
+
+  <!-- Google Fonts (profesional/legible) -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- Sprite de íconos SVG (embebidos) -->
+  <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+    <defs>
+      <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5z"/></symbol>
+      <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M11 4h2v16h-2zM4 11h16v2H4z"/></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7zm3-4h6l1 2H8l1-2z"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></symbol>
+      <symbol id="i-logo" viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="g-brand" x1="0" x2="1">
+            <stop offset="0" stop-color="#59A5FF"/><stop offset="1" stop-color="#2553D6"/>
+          </linearGradient>
+        </defs>
+        <circle cx="32" cy="32" r="28" fill="url(#g-brand)" />
+        <path d="M20 36h24v6a4 4 0 0 1-4 4H24a4 4 0 0 1-4-4v-6z" fill="#fff" opacity=".9"/>
+        <path d="M22 24h20a2 2 0 0 1 2 2v8H20v-8a2 2 0 0 1 2-2z" fill="#0B1F3A" opacity=".9"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- Splash / Bienvenida con branding -->
+  <section id="splash" class="splash" aria-label="Bienvenida Studyplanner">
+    <div class="splash-bg"></div>
+    <div class="splash-content">
+      <svg class="splash-logo" width="56" height="56" aria-hidden="true"><use href="#i-logo"/></svg>
+      <h1>Studyplanner</h1>
+      <p>Organizá tu cursada con foco, claridad y estilo.</p>
+      <button id="btn-start" class="btn primary lg" type="button">
+        <svg class="icon"><use href="#i-plus"/></svg><span>Comenzar</span>
+      </button>
+    </div>
+  </section>
+
   <header class="app-header" role="banner">
-    <h1 class="brand">Studyplanner</h1>
+    <h2 class="brand">
+      <svg class="logo" width="22" height="22" aria-hidden="true"><use href="#i-logo"/></svg>
+      Studyplanner
+    </h2>
   </header>
 
   <!-- Vista: Inicio -->
-  <main id="view-home" class="view active" data-view="home">
+  <main id="view-home" class="view active" data-view="home" aria-labelledby="home-title">
     <section class="hero">
-      <h2>Tu semana, organizada</h2>
-      <p>Planificá tareas por materia y fecha. Todo guardado en tu dispositivo.</p>
+      <div class="hero-badge">Planificador académico</div>
+      <h2 id="home-title">Tu semana, impecable</h2>
+      <p>Creá, ordená y marcá tareas por materia. Todo queda en tu dispositivo.</p>
       <div class="hero-actions">
-        <button class="btn primary" id="btn-new-task">+ Nueva tarea</button>
-        <button class="btn" data-link="tasks">Ver tareas</button>
+        <button class="btn primary" id="btn-new-task" type="button">
+          <svg class="icon"><use href="#i-plus"/></svg><span>Nueva tarea</span>
+        </button>
+        <button class="btn ghost" type="button" data-link="tasks">
+          <svg class="icon"><use href="#i-list"/></svg><span>Ver tareas</span>
+        </button>
       </div>
     </section>
+
     <section class="stats" aria-live="polite">
-      <div><strong id="stat-total">0</strong><span>Total</span></div>
-      <div><strong id="stat-done">0</strong><span>Hechas</span></div>
-      <div><strong id="stat-pending">0</strong><span>Pend.</span></div>
+      <div class="card"><strong id="stat-total">0</strong><span>Total</span></div>
+      <div class="card"><strong id="stat-done">0</strong><span>Hechas</span></div>
+      <div class="card"><strong id="stat-pending">0</strong><span>Pend.</span></div>
     </section>
   </main>
 
-  <!-- Vista: Tareas (lista + filtro) -->
-  <main id="view-tasks" class="view" data-view="tasks">
+  <!-- Vista: Tareas -->
+  <main id="view-tasks" class="view" data-view="tasks" aria-labelledby="tasks-title">
     <header class="subheader">
-      <h2>Tareas</h2>
+      <h2 id="tasks-title">Tareas</h2>
       <div class="filters">
         <label class="sr-only" for="subject-filter">Filtrar por materia</label>
-        <select id="subject-filter">
+        <select id="subject-filter" aria-label="Filtrar por materia">
           <option value="">Todas las materias</option>
           <option>Matemática</option>
           <option>Historia</option>
@@ -45,49 +94,58 @@
     </header>
 
     <ul id="task-list" class="task-list" aria-live="polite"></ul>
-
     <div class="empty" id="empty-state" hidden>
-      <p>No hay tareas. Tocá <strong>+ Nueva tarea</strong> para empezar.</p>
+      <p>No hay tareas. Tocá <strong>Nueva tarea</strong> para empezar.</p>
     </div>
   </main>
 
-  <!-- Vista: Editor (agregar/editar) -->
+  <!-- Vista: Editor -->
   <main id="view-editor" class="view" data-view="editor" aria-labelledby="editor-title">
     <h2 id="editor-title">Nueva / Editar tarea</h2>
     <form id="task-form" novalidate>
-      <label>Título
-        <input id="task-title" name="title" autocomplete="off" required />
-      </label>
+      <label for="task-title">Título</label>
+      <input id="task-title" name="title" autocomplete="off" inputmode="text" enterkeyhint="done" required />
 
-      <label>Materia
-        <select id="task-subject" name="subject" required>
-          <option value="">Elegí una materia</option>
-          <option>Matemática</option>
-          <option>Historia</option>
-          <option>Programación</option>
-          <option>Comunicación</option>
-        </select>
-      </label>
+      <label for="task-subject">Materia</label>
+      <select id="task-subject" name="subject" required>
+        <option value="">Elegí una materia</option>
+        <option>Matemática</option>
+        <option>Historia</option>
+        <option>Programación</option>
+        <option>Comunicación</option>
+      </select>
 
-      <label>Fecha
-        <input id="task-date" name="date" type="date" required />
-      </label>
+      <label for="task-date">Fecha</label>
+      <input id="task-date" name="date" type="date" inputmode="numeric" enterkeyhint="done" required />
 
       <div class="form-actions">
-        <button type="submit" class="btn primary">Guardar</button>
-        <button type="button" class="btn" id="btn-cancel">Cancelar</button>
+        <button type="submit" class="btn primary" id="btn-save">
+          <svg class="icon"><use href="#i-check"/></svg><span>Guardar</span>
+        </button>
+        <button type="button" class="btn" id="btn-cancel">
+          <svg class="icon"><use href="#i-info"/></svg><span>Cancelar</span>
+        </button>
       </div>
       <p class="form-hint" id="form-hint" aria-live="polite"></p>
     </form>
   </main>
 
   <!-- Navegación inferior -->
-  <nav class="bottom-nav" role="navigation" aria-label="Navegación">
-    <button class="nav-btn" data-link="home" aria-label="Inicio">Inicio</button>
-    <button class="nav-btn" data-link="tasks" aria-label="Tareas">Tareas</button>
-    <button class="nav-btn" data-link="editor" aria-label="Agregar">Agregar</button>
+  <nav class="bottom-nav" role="navigation" aria-label="Navegación principal">
+    <button class="nav-btn" type="button" data-link="home" aria-label="Inicio">
+      <svg class="icon"><use href="#i-home"/></svg><span>Inicio</span>
+    </button>
+    <button class="nav-btn" type="button" data-link="tasks" aria-label="Tareas">
+      <svg class="icon"><use href="#i-list"/></svg><span>Tareas</span>
+    </button>
+    <button class="nav-btn" type="button" data-link="editor" aria-label="Agregar">
+      <svg class="icon"><use href="#i-plus"/></svg><span>Agregar</span>
+    </button>
   </nav>
 
-  <script src="script.js"></script>
+  <!-- Toasts -->
+  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="script.js" defer></script>
 </body>
 </html>

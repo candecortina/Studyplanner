@@ -1,346 +1,175 @@
-// Studyplanner - Task Management App
-class StudyPlanner {
-  constructor() {
-    this.tasks = this.loadTasks();
-    this.currentView = 'home';
-    this.editingTaskId = null;
-    
-    this.init();
-  }
+/* ===== Persistencia ===== */
+const STORAGE_KEY = "studyplanner.tasks.v1";
+let tasks = loadTasks();
+let editingId = null;
 
-  init() {
-    this.bindEvents();
-    this.updateStats();
-    this.renderTasks();
-    this.setTodayDate();
-  }
+function loadTasks(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; } }
+function saveTasks(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
 
-  // Event binding
-  bindEvents() {
-    // Navigation
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const view = e.target.getAttribute('data-link');
-        this.navigateTo(view);
-      });
-    });
+/* ===== Helpers ===== */
+const $  = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const genId = () => (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-    // New task button
-    document.getElementById('btn-new-task').addEventListener('click', () => {
-      this.navigateTo('editor');
-    });
+/* ===== Splash (bienvenida) ===== */
+const splash = $("#splash");
+const btnStart = $("#btn-start");
+function hideSplash(){
+  if (!splash) return;
+  splash.classList.add("hide");
+  setTimeout(() => splash.remove(), 520);
+}
+btnStart?.addEventListener("click", hideSplash);
+// Autocierre suave tras un instante (si no tocan el botón)
+window.addEventListener("load", () => {
+  const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!prefersReduced) setTimeout(hideSplash, 1600);
+});
 
-    // Task form
-    document.getElementById('task-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.saveTask();
-    });
+/* ===== Navegación ===== */
+const views = $$(".view");
+function showView(name){
+  views.forEach(v => v.classList.toggle("active", v.dataset.view === name));
+  $$(".bottom-nav .nav-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.link === name));
+  if (name === "tasks") renderList();
+  if (name === "home")  renderStats();
+  if (name === "editor") $("#task-title")?.focus();
+}
+$$(".bottom-nav [data-link]").forEach(b => b.addEventListener("click", () => showView(b.dataset.link)));
+$("#btn-new-task")?.addEventListener("click", () => startCreate());
+$("[data-link='tasks']")?.addEventListener("click", () => showView("tasks"));
 
-    // Cancel button
-    document.getElementById('btn-cancel').addEventListener('click', () => {
-      this.navigateTo('home');
-    });
-
-    // Subject filter
-    document.getElementById('subject-filter').addEventListener('change', (e) => {
-      this.filterTasks(e.target.value);
-    });
-
-    // Task list events (delegated)
-    document.getElementById('task-list').addEventListener('click', (e) => {
-      if (e.target.classList.contains('task-checkbox')) {
-        this.toggleTask(e.target.closest('.task-item').dataset.taskId);
-      } else if (e.target.classList.contains('btn-edit')) {
-        this.editTask(e.target.closest('.task-item').dataset.taskId);
-      } else if (e.target.classList.contains('btn-delete')) {
-        this.deleteTask(e.target.closest('.task-item').dataset.taskId);
-      }
-    });
-  }
-
-  // Navigation
-  navigateTo(view) {
-    // Update active view
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById(`view-${view}`).classList.add('active');
-
-    // Update navigation buttons
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.classList.remove('active');
-      if (btn.getAttribute('data-link') === view) {
-        btn.classList.add('active');
-      }
-    });
-
-    this.currentView = view;
-
-    // View-specific actions
-    if (view === 'tasks') {
-      this.renderTasks();
-    } else if (view === 'editor') {
-      this.resetForm();
-    }
-  }
-
-  // Task management
-  saveTask() {
-    const form = document.getElementById('task-form');
-    const formData = new FormData(form);
-    
-    const taskData = {
-      title: formData.get('title').trim(),
-      subject: formData.get('subject'),
-      date: formData.get('date'),
-      completed: false,
-      createdAt: new Date().toISOString()
-    };
-
-    // Validation
-    if (!taskData.title || !taskData.subject || !taskData.date) {
-      this.showFormHint('Por favor completá todos los campos', 'error');
-      return;
-    }
-
-    // Check for duplicate title
-    const existingTask = this.tasks.find(task => 
-      task.title.toLowerCase() === taskData.title.toLowerCase() && 
-      task.id !== this.editingTaskId
-    );
-
-    if (existingTask) {
-      this.showFormHint('Ya existe una tarea con ese título', 'error');
-      return;
-    }
-
-    if (this.editingTaskId) {
-      // Update existing task
-      const taskIndex = this.tasks.findIndex(task => task.id === this.editingTaskId);
-      if (taskIndex !== -1) {
-        this.tasks[taskIndex] = { ...this.tasks[taskIndex], ...taskData };
-        this.showFormHint('Tarea actualizada correctamente', 'success');
-      }
-    } else {
-      // Create new task
-      const newTask = {
-        id: this.generateId(),
-        ...taskData
-      };
-      this.tasks.push(newTask);
-      this.showFormHint('Tarea creada correctamente', 'success');
-    }
-
-    this.saveTasks();
-    this.updateStats();
-    this.renderTasks();
-    
-    // Clear form and navigate
-    setTimeout(() => {
-      this.resetForm();
-      this.navigateTo('home');
-    }, 1500);
-  }
-
-  toggleTask(taskId) {
-    const task = this.tasks.find(t => t.id === taskId);
-    if (task) {
-      task.completed = !task.completed;
-      this.saveTasks();
-      this.updateStats();
-      this.renderTasks();
-    }
-  }
-
-  editTask(taskId) {
-    const task = this.tasks.find(t => t.id === taskId);
-    if (task) {
-      this.editingTaskId = taskId;
-      document.getElementById('task-title').value = task.title;
-      document.getElementById('task-subject').value = task.subject;
-      document.getElementById('task-date').value = task.date;
-      document.getElementById('editor-title').textContent = 'Editar tarea';
-      this.navigateTo('editor');
-    }
-  }
-
-  deleteTask(taskId) {
-    if (confirm('¿Estás seguro de que querés eliminar esta tarea?')) {
-      this.tasks = this.tasks.filter(t => t.id !== taskId);
-      this.saveTasks();
-      this.updateStats();
-      this.renderTasks();
-    }
-  }
-
-  filterTasks(subject) {
-    this.renderTasks(subject);
-  }
-
-  // Rendering
-  renderTasks(filterSubject = '') {
-    const taskList = document.getElementById('task-list');
-    const emptyState = document.getElementById('empty-state');
-    
-    let filteredTasks = this.tasks;
-    if (filterSubject) {
-      filteredTasks = this.tasks.filter(task => task.subject === filterSubject);
-    }
-
-    // Sort tasks: incomplete first, then by date
-    filteredTasks.sort((a, b) => {
-      if (a.completed !== b.completed) {
-        return a.completed - b.completed;
-      }
-      return new Date(a.date) - new Date(b.date);
-    });
-
-    if (filteredTasks.length === 0) {
-      taskList.innerHTML = '';
-      emptyState.hidden = false;
-      return;
-    }
-
-    emptyState.hidden = true;
-    taskList.innerHTML = filteredTasks.map(task => this.createTaskHTML(task)).join('');
-  }
-
-  createTaskHTML(task) {
-    const isOverdue = new Date(task.date) < new Date() && !task.completed;
-    const dateFormatted = this.formatDate(task.date);
-    
-    return `
-      <li class="task-item ${task.completed ? 'completed' : ''} ${isOverdue ? 'overdue' : ''}" data-task-id="${task.id}">
-        <div class="task-checkbox ${task.completed ? 'checked' : ''}" role="button" tabindex="0" aria-label="${task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}">
-          ${task.completed ? '✓' : ''}
-        </div>
-        <div class="task-content">
-          <div class="task-title ${task.completed ? 'completed' : ''}">${this.escapeHtml(task.title)}</div>
-          <div class="task-meta">
-            <span class="task-subject">${this.escapeHtml(task.subject)}</span>
-            <span class="task-date ${isOverdue ? 'overdue' : ''}">${dateFormatted}</span>
-          </div>
-        </div>
-        <div class="task-actions">
-          <button class="btn btn-small" onclick="event.stopPropagation()" aria-label="Editar tarea">
-            <span class="btn-edit">✏️</span>
-          </button>
-          <button class="btn btn-small btn-danger" onclick="event.stopPropagation()" aria-label="Eliminar tarea">
-            <span class="btn-delete">🗑️</span>
-          </button>
-        </div>
-      </li>
-    `;
-  }
-
-  updateStats() {
-    const total = this.tasks.length;
-    const done = this.tasks.filter(task => task.completed).length;
-    const pending = total - done;
-
-    document.getElementById('stat-total').textContent = total;
-    document.getElementById('stat-done').textContent = done;
-    document.getElementById('stat-pending').textContent = pending;
-  }
-
-  // Utility functions
-  resetForm() {
-    document.getElementById('task-form').reset();
-    document.getElementById('editor-title').textContent = 'Nueva tarea';
-    this.editingTaskId = null;
-    this.showFormHint('', '');
-    this.setTodayDate();
-  }
-
-  setTodayDate() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('task-date').value = today;
-  }
-
-  showFormHint(message, type) {
-    const hint = document.getElementById('form-hint');
-    hint.textContent = message;
-    hint.className = `form-hint ${type}`;
-  }
-
-  formatDate(dateString) {
-    const date = new Date(dateString);
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    if (date.toDateString() === today.toDateString()) {
-      return 'Hoy';
-    } else if (date.toDateString() === tomorrow.toDateString()) {
-      return 'Mañana';
-    } else {
-      return date.toLocaleDateString('es-AR', { 
-        day: 'numeric', 
-        month: 'short' 
-      });
-    }
-  }
-
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-  }
-
-  // Local storage
-  saveTasks() {
-    localStorage.setItem('studyplanner-tasks', JSON.stringify(this.tasks));
-  }
-
-  loadTasks() {
-    const saved = localStorage.getItem('studyplanner-tasks');
-    return saved ? JSON.parse(saved) : [];
-  }
+/* ===== Toasts (feedback) ===== */
+const toastBox = $("#toasts");
+function toast(msg, type="info", icon="i-info", timeout=2200){
+  const el = document.createElement("div");
+  el.className = "toast" + (type === "success" ? " ok" : type === "error" ? " err" : "");
+  el.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#${icon}"/></svg><span>${esc(msg)}</span>`;
+  toastBox.appendChild(el);
+  setTimeout(() => { el.style.opacity = "0"; el.style.transform = "translate(-50%,-4px)"; }, timeout);
+  setTimeout(() => el.remove(), timeout + 240);
 }
 
-// Initialize app when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-  new StudyPlanner();
-});
+/* ===== Formulario ===== */
+const form = $("#task-form");
+const hint = $("#form-hint");
+const btnSave = $("#btn-save");
 
-// Add some sample data if no tasks exist
-document.addEventListener('DOMContentLoaded', () => {
-  const app = new StudyPlanner();
-  
-  // Add sample tasks if none exist
-  if (app.tasks.length === 0) {
-    const sampleTasks = [
-      {
-        id: 'sample-1',
-        title: 'Resolver ejercicios de álgebra',
-        subject: 'Matemática',
-        date: new Date().toISOString().split('T')[0],
-        completed: false,
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: 'sample-2',
-        title: 'Leer capítulo 5 de historia',
-        subject: 'Historia',
-        date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
-        completed: false,
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: 'sample-3',
-        title: 'Completar proyecto de programación',
-        subject: 'Programación',
-        date: new Date(Date.now() + 172800000).toISOString().split('T')[0], // Day after tomorrow
-        completed: true,
-        createdAt: new Date().toISOString()
-      }
-    ];
-    
-    app.tasks = sampleTasks;
-    app.saveTasks();
-    app.updateStats();
-    app.renderTasks();
+function startCreate(){
+  editingId = null;
+  form.reset();
+  hint.textContent = "Completá título, materia y fecha.";
+  showView("editor");
+}
+function startEdit(id){
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  editingId = id;
+  $("#task-title").value   = t.title;
+  $("#task-subject").value = t.subject;
+  $("#task-date").value    = t.date;
+  hint.textContent = "Editá los campos y guardá.";
+  showView("editor");
+}
+form?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const title   = $("#task-title").value.trim();
+  const subject = $("#task-subject").value;
+  const date    = $("#task-date").value;
+  if (!title || !subject || !date){
+    hint.textContent = "Falta completar algún campo.";
+    toast("Completá todos los campos.", "error");
+    return;
   }
+  btnSave.disabled = true; btnSave.setAttribute("aria-busy","true");
+  hint.textContent = "Guardando…";
+  await new Promise(r => setTimeout(r, 200));
+
+  if (editingId){
+    tasks = tasks.map(t => t.id === editingId ? { ...t, title, subject, date } : t);
+  } else {
+    tasks.push({ id: genId(), title, subject, date, done:false });
+  }
+  saveTasks();
+
+  btnSave.disabled = false; btnSave.removeAttribute("aria-busy"); hint.textContent = "";
+  editingId = null;
+  toast("Tarea guardada", "success", "i-check");
+  showView("tasks");
+  renderList();
 });
+$("#btn-cancel")?.addEventListener("click", () => { editingId = null; showView("tasks"); });
+
+/* ===== Lista + filtro ===== */
+const list       = $("#task-list");
+const emptyState = $("#empty-state");
+const filter     = $("#subject-filter");
+filter?.addEventListener("change", renderList);
+
+function renderList(){
+  const subject = filter?.value || "";
+  const sorted  = [...tasks].sort((a,b) => a.date.localeCompare(b.date));
+  const data    = subject ? sorted.filter(t => t.subject === subject) : sorted;
+
+  list.innerHTML = "";
+  if (data.length === 0){ emptyState.hidden = false; renderStats(); return; }
+  emptyState.hidden = true;
+
+  for (const t of data){
+    const li = document.createElement("li");
+    li.className = "task" + (t.done ? " done" : "");
+    li.innerHTML = `
+      <main>
+        <h3>${esc(t.title)}</h3>
+        <small>${esc(t.subject)} · ${t.date}</small>
+      </main>
+      <div class="actions">
+        <button class="btn" type="button" data-act="toggle" data-id="${t.id}">
+          <svg class="icon"><use href="#i-check"/></svg><span class="sr-only">Completar</span>
+        </button>
+        <button class="btn" type="button" data-act="edit" data-id="${t.id}">
+          <svg class="icon"><use href="#i-edit"/></svg><span class="sr-only">Editar</span>
+        </button>
+        <button class="btn" type="button" data-act="del" data-id="${t.id}">
+          <svg class="icon"><use href="#i-trash"/></svg><span class="sr-only">Borrar</span>
+        </button>
+      </div>
+    `;
+    list.appendChild(li);
+  }
+
+  list.querySelectorAll(".btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id  = btn.dataset.id;
+      const act = btn.dataset.act;
+      if (act === "toggle"){
+        tasks = tasks.map(t => t.id === id ? ({ ...t, done: !t.done }) : t);
+        saveTasks();
+        toast("Estado actualizado", "success", "i-check", 1500);
+        list.querySelector(`[data-id="${id}"]`)?.closest(".task")?.classList.add("flash");
+      } else if (act === "edit"){
+        return startEdit(id);
+      } else if (act === "del"){
+        const ok = confirm("¿Borrar esta tarea?"); if (!ok) return;
+        tasks = tasks.filter(t => t.id !== id);
+        saveTasks();
+        toast("Tarea eliminada");
+      }
+      renderList(); renderStats();
+    });
+  });
+
+  renderStats();
+}
+
+function renderStats(){
+  const total   = tasks.length;
+  const done    = tasks.filter(t => t.done).length;
+  const pending = total - done;
+  $("#stat-total").textContent   = total;
+  $("#stat-done").textContent    = done;
+  $("#stat-pending").textContent = pending;
+}
+
+/* ===== Inicio ===== */
+document.addEventListener("DOMContentLoaded", () => { renderStats(); renderList(); });

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Studyplanner</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header" role="banner">
+    <h1 class="brand">Studyplanner</h1>
+  </header>
+
+  <!-- Vista: Inicio -->
+  <main id="view-home" class="view active" data-view="home">
+    <section class="hero">
+      <h2>Tu semana, organizada</h2>
+      <p>Planificá tareas por materia y fecha. Todo guardado en tu dispositivo.</p>
+      <div class="hero-actions">
+        <button class="btn primary" id="btn-new-task">+ Nueva tarea</button>
+        <button class="btn" data-link="tasks">Ver tareas</button>
+      </div>
+    </section>
+    <section class="stats" aria-live="polite">
+      <div><strong id="stat-total">0</strong><span>Total</span></div>
+      <div><strong id="stat-done">0</strong><span>Hechas</span></div>
+      <div><strong id="stat-pending">0</strong><span>Pend.</span></div>
+    </section>
+  </main>
+
+  <!-- Vista: Tareas (lista + filtro) -->
+  <main id="view-tasks" class="view" data-view="tasks">
+    <header class="subheader">
+      <h2>Tareas</h2>
+      <div class="filters">
+        <label class="sr-only" for="subject-filter">Filtrar por materia</label>
+        <select id="subject-filter">
+          <option value="">Todas las materias</option>
+          <option>Matemática</option>
+          <option>Historia</option>
+          <option>Programación</option>
+          <option>Comunicación</option>
+        </select>
+      </div>
+    </header>
+
+    <ul id="task-list" class="task-list" aria-live="polite"></ul>
+
+    <div class="empty" id="empty-state" hidden>
+      <p>No hay tareas. Tocá <strong>+ Nueva tarea</strong> para empezar.</p>
+    </div>
+  </main>
+
+  <!-- Vista: Editor (agregar/editar) -->
+  <main id="view-editor" class="view" data-view="editor" aria-labelledby="editor-title">
+    <h2 id="editor-title">Nueva / Editar tarea</h2>
+    <form id="task-form" novalidate>
+      <label>Título
+        <input id="task-title" name="title" autocomplete="off" required />
+      </label>
+
+      <label>Materia
+        <select id="task-subject" name="subject" required>
+          <option value="">Elegí una materia</option>
+          <option>Matemática</option>
+          <option>Historia</option>
+          <option>Programación</option>
+          <option>Comunicación</option>
+        </select>
+      </label>
+
+      <label>Fecha
+        <input id="task-date" name="date" type="date" required />
+      </label>
+
+      <div class="form-actions">
+        <button type="submit" class="btn primary">Guardar</button>
+        <button type="button" class="btn" id="btn-cancel">Cancelar</button>
+      </div>
+      <p class="form-hint" id="form-hint" aria-live="polite"></p>
+    </form>
+  </main>
+
+  <!-- Navegación inferior -->
+  <nav class="bottom-nav" role="navigation" aria-label="Navegación">
+    <button class="nav-btn" data-link="home" aria-label="Inicio">Inicio</button>
+    <button class="nav-btn" data-link="tasks" aria-label="Tareas">Tareas</button>
+    <button class="nav-btn" data-link="editor" aria-label="Agregar">Agregar</button>
+  </nav>
+
+  <script src="script.js"></script>
+</body>
+</html>

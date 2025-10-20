@@ -1,46 +1,40 @@
-/* ===== Persistencia ===== */
+/* ==== Persistencia ==== */
 const STORAGE_KEY = "studyplanner.tasks.v1";
 let tasks = loadTasks();
 let editingId = null;
-
 function loadTasks(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; } }
 function saveTasks(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
 
-/* ===== Helpers ===== */
+/* ==== Helpers ==== */
 const $  = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 const genId = () => (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* ===== Splash (bienvenida) ===== */
+/* ==== Splash ==== */
 const splash = $("#splash");
 const btnStart = $("#btn-start");
-function hideSplash(){
-  if (!splash) return;
-  splash.classList.add("hide");
-  setTimeout(() => splash.remove(), 520);
-}
+function hideSplash(){ if (!splash) return; splash.classList.add("hide"); setTimeout(() => splash.remove(), 520); }
 btnStart?.addEventListener("click", hideSplash);
-// Autocierre suave tras un instante (si no tocan el botón)
 window.addEventListener("load", () => {
   const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (!prefersReduced) setTimeout(hideSplash, 1600);
 });
 
-/* ===== Navegación ===== */
+/* ==== Navegación ==== */
 const views = $$(".view");
 function showView(name){
   views.forEach(v => v.classList.toggle("active", v.dataset.view === name));
   $$(".bottom-nav .nav-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.link === name));
   if (name === "tasks") renderList();
   if (name === "home")  renderStats();
-  if (name === "editor") $("#task-title")?.focus();
+  if (name === "editor"){ $("#task-title")?.focus(); }
 }
 $$(".bottom-nav [data-link]").forEach(b => b.addEventListener("click", () => showView(b.dataset.link)));
 $("#btn-new-task")?.addEventListener("click", () => startCreate());
 $("[data-link='tasks']")?.addEventListener("click", () => showView("tasks"));
 
-/* ===== Toasts (feedback) ===== */
+/* ==== Toasts ==== */
 const toastBox = $("#toasts");
 function toast(msg, type="info", icon="i-info", timeout=2200){
   const el = document.createElement("div");
@@ -51,17 +45,19 @@ function toast(msg, type="info", icon="i-info", timeout=2200){
   setTimeout(() => el.remove(), timeout + 240);
 }
 
-/* ===== Formulario ===== */
-const form = $("#task-form");
-const hint = $("#form-hint");
+/* ==== Formulario ==== */
+const form    = $("#task-form");
+const hint    = $("#form-hint");
 const btnSave = $("#btn-save");
+const btnSaveAdd = $("#btn-save-add");
 
 function startCreate(){
   editingId = null;
-  form.reset();
+  form.reset();                 // ← campos en blanco al crear
   hint.textContent = "Completá título, materia y fecha.";
   showView("editor");
 }
+
 function startEdit(id){
   const t = tasks.find(x => x.id === id); if (!t) return;
   editingId = id;
@@ -71,19 +67,20 @@ function startEdit(id){
   hint.textContent = "Editá los campos y guardá.";
   showView("editor");
 }
-form?.addEventListener("submit", async (e) => {
-  e.preventDefault();
+
+async function handleSave({stayInEditor=false} = {}){
   const title   = $("#task-title").value.trim();
   const subject = $("#task-subject").value;
   const date    = $("#task-date").value;
   if (!title || !subject || !date){
     hint.textContent = "Falta completar algún campo.";
     toast("Completá todos los campos.", "error");
-    return;
+    return false;
   }
-  btnSave.disabled = true; btnSave.setAttribute("aria-busy","true");
-  hint.textContent = "Guardando…";
-  await new Promise(r => setTimeout(r, 200));
+
+  // simulamos pequeña espera para feedback
+  btnSave?.setAttribute("aria-busy","true");
+  await new Promise(r => setTimeout(r, 160));
 
   if (editingId){
     tasks = tasks.map(t => t.id === editingId ? { ...t, title, subject, date } : t);
@@ -91,28 +88,58 @@ form?.addEventListener("submit", async (e) => {
     tasks.push({ id: genId(), title, subject, date, done:false });
   }
   saveTasks();
-
-  btnSave.disabled = false; btnSave.removeAttribute("aria-busy"); hint.textContent = "";
+  hint.textContent = "";
+  btnSave?.removeAttribute("aria-busy");
   editingId = null;
+
   toast("Tarea guardada", "success", "i-check");
-  showView("tasks");
-  renderList();
-});
+
+  if (stayInEditor){
+    form.reset();               // ← queda listo para cargar otra
+    $("#task-title").focus();
+    return true;
+  } else {
+    form.reset();               // ← también limpia si volvés a la lista
+    showView("tasks");
+    renderList();
+    return true;
+  }
+}
+
+form?.addEventListener("submit", async (e) => { e.preventDefault(); await handleSave({stayInEditor:false}); });
+btnSaveAdd?.addEventListener("click", async () => { await handleSave({stayInEditor:true}); });
 $("#btn-cancel")?.addEventListener("click", () => { editingId = null; showView("tasks"); });
 
-/* ===== Lista + filtro ===== */
-const list       = $("#task-list");
-const emptyState = $("#empty-state");
-const filter     = $("#subject-filter");
-filter?.addEventListener("change", renderList);
+/* ==== Lista + Filtro (chips + select sincronizados) ==== */
+const list         = $("#task-list");
+const emptyState   = $("#empty-state");
+const filterSelect = $("#subject-filter");
+const chipBar      = $(".subject-chips");
+
+function setFilter(value){
+  // sync select
+  if (filterSelect) filterSelect.value = value;
+  // sync chips
+  $$(".chip", chipBar).forEach(c => c.classList.toggle("active", (c.dataset.subject || "") === value));
+  renderList();
+}
+chipBar?.addEventListener("click", (e) => {
+  const btn = e.target.closest(".chip"); if (!btn) return;
+  setFilter(btn.dataset.subject || "");
+});
+filterSelect?.addEventListener("change", () => setFilter(filterSelect.value || ""));
 
 function renderList(){
-  const subject = filter?.value || "";
+  const subject = filterSelect?.value || "";
   const sorted  = [...tasks].sort((a,b) => a.date.localeCompare(b.date));
   const data    = subject ? sorted.filter(t => t.subject === subject) : sorted;
 
   list.innerHTML = "";
-  if (data.length === 0){ emptyState.hidden = false; renderStats(); return; }
+  if (data.length === 0){
+    emptyState.hidden = false;
+    renderStats();
+    return;
+  }
   emptyState.hidden = true;
 
   for (const t of data){
@@ -162,6 +189,7 @@ function renderList(){
   renderStats();
 }
 
+/* ==== Stats ==== */
 function renderStats(){
   const total   = tasks.length;
   const done    = tasks.filter(t => t.done).length;
@@ -171,6 +199,10 @@ function renderStats(){
   $("#stat-pending").textContent = pending;
 }
 
-/* ===== Inicio ===== */
-document.addEventListener("DOMContentLoaded", () => { renderStats(); renderList(); });
-
+/* ==== Inicio ==== */
+document.addEventListener("DOMContentLoaded", () => {
+  renderStats();
+  // asegurar que chips y select arranquen sincronizados
+  setFilter("");
+  renderList();
+});

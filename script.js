@@ -173,3 +173,4 @@ function renderStats(){
 
 /* ===== Inicio ===== */
 document.addEventListener("DOMContentLoaded", () => { renderStats(); renderList(); });
+

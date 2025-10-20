@@ -61,3 +61,5 @@ Puedes personalizar las materias editando las opciones en:
 - `script.js`: Array de materias en el código
 
 ¡Disfruta organizando tu estudio! 📖✨
+
+
